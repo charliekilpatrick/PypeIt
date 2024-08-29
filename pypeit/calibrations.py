@@ -29,7 +29,7 @@ from pypeit import msgs
 from pypeit import alignframe
 from pypeit import flatfield
 from pypeit import edgetrace
-from pypeit import scattlight
+from pypeit.scattlight import ScatteredLight
 from pypeit import slittrace
 from pypeit import wavecalib
 from pypeit import wavetilts
@@ -38,14 +38,10 @@ from pypeit.images import buildimage
 from pypeit.metadata import PypeItMetaData
 from pypeit.core import framematch
 from pypeit.core import parse
-from pypeit.core import scattlight as core_scattlight
-from pypeit.core.mosaic import build_image_mosaic
+from pypeit.core import scattlight
 from pypeit.par import pypeitpar
 from pypeit.spectrographs.spectrograph import Spectrograph
-from pypeit import io
 from pypeit import utils
-from pypeit import cache
-from pypeit import dataPaths
 
 
 class Calibrations:
@@ -662,7 +658,8 @@ class Calibrations:
         binning = self.fitstbl[scatt_idx[0]]['binning']
         dispname = self.fitstbl[scatt_idx[0]]['dispname']
         scattlightImage = buildimage.buildimage_fromlist(self.spectrograph, self.det,
-                                                         self.par['scattlightframe'], raw_scattlight_files,
+                                                         self.par['scattlightframe'],
+                                                         raw_scattlight_files,
                                                          bias=self.msbias, bpm=self.msbpm,
                                                          dark=self.msdark, calib_dir=self.calib_dir,
                                                          setup=setup, calib_id=calib_id)
@@ -674,8 +671,8 @@ class Calibrations:
         # Get starting parameters for the scattered light model
         x0, bounds = self.spectrograph.scattered_light_archive(binning, dispname)
         # Perform a fit to the scattered light
-        model, modelpar, success = core_scattlight.scattered_light(scattlightImage.image, self.msbpm, offslitmask,
-                                                                   x0, bounds)
+        model, modelpar, success = scattlight.scattered_light(scattlightImage.image, self.msbpm,
+                                                              offslitmask, x0, bounds)
 
         if not success:
             # Something went awry
@@ -687,7 +684,8 @@ class Calibrations:
         self.msscattlight = scattlight.ScatteredLight(PYP_SPEC=self.spectrograph.name,
                                                       pypeline=self.spectrograph.pypeline,
                                                       detname=scattlightImage.detector.name,
-                                                      nspec=scattlightImage.shape[0], nspat=scattlightImage.shape[1],
+                                                      nspec=scattlightImage.shape[0],
+                                                      nspat=scattlightImage.shape[1],
                                                       binning=scattlightImage.detector.binning,
                                                       pad=self.par['scattlight_pad'],
                                                       scattlight_raw=scattlightImage.image,
