@@ -737,6 +737,33 @@ class Calibrations:
         slitless_rows = self.fitstbl.find_frames('slitless_pixflat', calib_ID=self.calib_ID, index=True)
         if len(slitless_rows) > 0:
 
+            #fitstbl_file = 'fitstbl.tbl'
+            #self.fitstbl.write(fitstbl_file, overwrite=True)
+
+            cfg_file = 'calibrations.par'
+            self.par.to_config(cfg_file=cfg_file, section_name='calibrations', include_descr=False)
+
+            from configobj import ConfigObj
+            from pypeit.par import util
+            from pypeit.par import pypeitpar
+            from pypeit.par.parset import ParSet
+
+            cfg = ConfigObj(cfg_file)
+            cfg = util.recursive_dict_evaluate(cfg)
+            par = pypeitpar.CalibrationsPar.from_dict(dict(cfg['calibrations']))
+
+            def recursive_compare(par, cp_par):
+                for key in par.keys():
+                    if key not in cp_par.keys():
+                        raise KeyError(f'{key} not in copied par')
+                    if isinstance(par[key], ParSet):
+                        recursive_compare(par[key], cp_par[key])
+                        continue
+                    if par[key] != cp_par[key]:
+                        raise ValueError(f'Values for {key} differ: {par[key]} {cp_par[key]}')
+
+            recursive_compare(par, self.par)
+
             embed()
             exit()
 
