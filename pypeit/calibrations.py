@@ -627,7 +627,7 @@ class Calibrations:
         self._chk_set(['det', 'calib_ID', 'par'])
 
         # Prep
-        frame = {'type': 'scattlight', 'class': scattlight.ScatteredLight}
+        frame = {'type': 'scattlight', 'class': ScatteredLight}
         raw_scattlight_files, cal_file, calib_key, setup, calib_id, detname = \
             self.find_calibrations(frame['type'], frame['class'])
         scatt_idx = self.fitstbl.find_frames(frame['type'], calib_ID=self.calib_ID, index=True)
@@ -681,16 +681,16 @@ class Calibrations:
             return self.msscattlight
 
         # Now generate the DataModel
-        self.msscattlight = scattlight.ScatteredLight(PYP_SPEC=self.spectrograph.name,
-                                                      pypeline=self.spectrograph.pypeline,
-                                                      detname=scattlightImage.detector.name,
-                                                      nspec=scattlightImage.shape[0],
-                                                      nspat=scattlightImage.shape[1],
-                                                      binning=scattlightImage.detector.binning,
-                                                      pad=self.par['scattlight_pad'],
-                                                      scattlight_raw=scattlightImage.image,
-                                                      scattlight_model=model,
-                                                      scattlight_param=modelpar)
+        self.msscattlight = ScatteredLight(PYP_SPEC=self.spectrograph.name,
+                                           pypeline=self.spectrograph.pypeline,
+                                           detname=scattlightImage.detector.name,
+                                           nspec=scattlightImage.shape[0],
+                                           nspat=scattlightImage.shape[1],
+                                           binning=scattlightImage.detector.binning,
+                                           pad=self.par['scattlight_pad'],
+                                           scattlight_raw=scattlightImage.image,
+                                           scattlight_model=model,
+                                           scattlight_param=modelpar)
 
         # TODO :: Should we go back and recalculate the slit edges once the scattered light is known?
 
@@ -736,6 +736,10 @@ class Calibrations:
         # generate the slitless pixel flat (if frames available).
         slitless_rows = self.fitstbl.find_frames('slitless_pixflat', calib_ID=self.calib_ID, index=True)
         if len(slitless_rows) > 0:
+
+            embed()
+            exit()
+
             sflat = flatfield.SlitlessFlat(self.fitstbl, slitless_rows, self.spectrograph,
                                            self.par, qa_path=self.qa_path)
             # A pixel flat will be saved to disc and self.par['flatfield']['pixelflat_file'] will be updated

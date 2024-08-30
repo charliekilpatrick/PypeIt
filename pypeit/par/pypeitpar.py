@@ -1092,7 +1092,7 @@ class ScatteredLightPar(ParSet):
                           '\'archive\' will use an archival model parameter solution for the scattered ' \
                           'light (note that this option is not currently available for all spectrographs).'
 
-        defaults['finecorr_method'] = None
+        defaults['finecorr_method'] = 'None'
         options['finecorr_method'] = ScatteredLightPar.valid_finecorr_scattlight_methods()
         dtypes['finecorr_method'] = str
         descr['finecorr_method'] = 'If None, a fine correction to the scattered light will not be performed. ' \
@@ -1167,7 +1167,7 @@ class ScatteredLightPar(ParSet):
         """
         Return the valid scattered light methods.
         """
-        return ['median', 'poly']
+        return ['None', 'median', 'poly']
 
 
 class Coadd1DPar(ParSet):
