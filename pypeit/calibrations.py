@@ -737,32 +737,43 @@ class Calibrations:
         slitless_rows = self.fitstbl.find_frames('slitless_pixflat', calib_ID=self.calib_ID, index=True)
         if len(slitless_rows) > 0:
 
-            #fitstbl_file = 'fitstbl.tbl'
-            #self.fitstbl.write(fitstbl_file, overwrite=True)
-
             cfg_file = 'calibrations.par'
             self.par.to_config(cfg_file=cfg_file, section_name='calibrations', include_descr=False)
 
-            from configobj import ConfigObj
-            from pypeit.par import util
-            from pypeit.par import pypeitpar
-            from pypeit.par.parset import ParSet
+#            from configobj import ConfigObj
+#            from pypeit.par import util
+#            from pypeit.par import pypeitpar
+#
+#            cfg = ConfigObj(cfg_file)
+#            cfg = util.recursive_dict_evaluate(cfg)
+#            calib_par = pypeitpar.CalibrationsPar.from_dict(dict(cfg['calibrations']))
+#
+#            from pypeit.par.parset import ParSet
+#            def recursive_compare(par, cp_par):
+#                for key in par.keys():
+#                    if key not in cp_par.keys():
+#                        raise KeyError(f'{key} not in copied par')
+#                    if isinstance(par[key], ParSet):
+#                        recursive_compare(par[key], cp_par[key])
+#                        continue
+#                    if par[key] != cp_par[key]:
+#                        raise ValueError(f'Values for {key} differ: {par[key]} {cp_par[key]}')
+#            recursive_compare(self.par, calib_par)
 
-            cfg = ConfigObj(cfg_file)
-            cfg = util.recursive_dict_evaluate(cfg)
-            par = pypeitpar.CalibrationsPar.from_dict(dict(cfg['calibrations']))
+            fitstbl_file = 'fitstbl.tbl'
+            self.fitstbl.write(fitstbl_file, overwrite=True)
 
-            def recursive_compare(par, cp_par):
-                for key in par.keys():
-                    if key not in cp_par.keys():
-                        raise KeyError(f'{key} not in copied par')
-                    if isinstance(par[key], ParSet):
-                        recursive_compare(par[key], cp_par[key])
-                        continue
-                    if par[key] != cp_par[key]:
-                        raise ValueError(f'Values for {key} differ: {par[key]} {cp_par[key]}')
-
-            recursive_compare(par, self.par)
+#            from astropy import table
+#            data = table.Table.read(fitstbl_file, format='ascii.fixed_width')
+#            data['manual'] = table.Column(data=np.array(['']*len(data)))
+#            for key in data.keys():
+#                print(key, np.array_equal(self.fitstbl.table[key].astype(data[key].dtype), data[key]))
+#            
+#            par = pypeitpar.PypeItPar()
+#            par['calibrations'] = calib_par
+#
+#            fitstbl = PypeItMetaData(self.spectrograph, par, data=data)
+#            fitstbl._set_calib_group_bits()
 
             embed()
             exit()
