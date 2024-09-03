@@ -1880,6 +1880,9 @@ class SlitlessFlat:
             pixflat_norm_list.append(pixelflatImages.pixelflat_norm)
             detname_list.append(self.spectrograph.get_det_name(_det))
 
+        embed()
+        exit()
+
         if len(detname_list) > 0:
             # get the pixel flat file name
             if self.par['flatfield']['pixelflat_file'] is not None and _pixel_flat_file is not None:
