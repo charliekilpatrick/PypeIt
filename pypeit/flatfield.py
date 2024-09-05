@@ -703,13 +703,13 @@ class FlatField:
         """
         msgs.info("Generating wavelength image")
         if self.wavetilts is None or self.wv_calib is None:
-            msgs.error("Wavelength calib or tilts are not available.  Cannot generate wavelength image.")
-        else:
-            flex = self.wavetilts.spat_flexure
-            slitmask = self.slits.slit_img(initial=True, flexure=flex)
-            tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
-            # Save to class attribute for inclusion in the Flat calibration frame
-            self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
+            msgs.error("Wavelength calibration and/or tilts calibration data are not available.  "
+                       "Cannot generate wavelength image.")
+        flex = self.wavetilts.spat_flexure
+        slitmask = self.slits.slit_img(initial=True, flexure=flex)
+        tilts = self.wavetilts.fit2tiltimg(slitmask, flexure=flex)
+        # Save to class attribute for inclusion in the Flat calibration frame
+        self.waveimg = self.wv_calib.build_waveimg(tilts, self.slits, spat_flexure=flex)
 
     def show(self, wcs_match=True):
         """
