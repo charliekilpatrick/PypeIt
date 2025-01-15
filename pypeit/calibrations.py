@@ -216,10 +216,15 @@ class Calibrations:
     def check_calibrations(self, file_list, check_lamps=True):
         """
         Check if the input calibration files are consistent with each other.
-        This step is usually needed when combining calibration frames of a given type.
-        This routine currently only prints out warning messages if the calibration files are not consistent.
 
-        Note: The exposure times are currently checked in the combine step, so they are not checked here.
+        This step is usually needed when combining calibration frames of a given
+        type.  This routine currently only prints out warning messages if the
+        calibration files are not consistent.
+
+        .. note::
+
+            The exposure times are currently checked in the combine step, so
+            they are not checked here.
 
         Parameters
         ----------
@@ -229,15 +234,15 @@ class Calibrations:
             Check if the lamp status is the same for all the files. Default is True.
         """
 
-        lampstat = [None] * len(file_list)
-        # Loop on the files
-        for ii, ifile in enumerate(file_list):
-            # Save the lamp status
-            headarr = deepcopy(self.spectrograph.get_headarr(ifile))
-            lampstat[ii] = self.spectrograph.get_lamps_status(headarr)
-
         # Check that the lamps being combined are all the same
         if check_lamps:
+            lampstat = [None] * len(file_list)
+            # Loop on the files
+            for ii, ifile in enumerate(file_list):
+                # Save the lamp status
+                headarr = deepcopy(self.spectrograph.get_headarr(ifile))
+                lampstat[ii] = self.spectrograph.get_lamps_status(headarr)
+
             if not lampstat[1:] == lampstat[:-1]:
                 msgs.warn("The following files contain different lamp status")
                 # Get the longest strings
@@ -1111,6 +1116,7 @@ class Calibrations:
         meta_dict = dict(self.fitstbl[is_arc][0]) \
                     if self.spectrograph.pypeline == 'Echelle' \
                         and not self.spectrograph.ech_fixed_format else None
+
         # Instantiate
         # TODO: Pull out and pass only the necessary parts of meta_dict to
         # this, or include the relevant parts as parameters.  See comments

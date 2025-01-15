@@ -420,9 +420,9 @@ def resize_spec(spec_from, nspec_to):
 def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
                 nonlinear_counts=1e10, slit_bpm=None, slitIDs=None, verbose=True):
     """
-    Extract a boxcar spectrum with radius `box_rad` (pixels) from the input image using the 
-    input trace.  By default, outliers within the box are clipped
-    with 3.0 sigma rejection using `astropy.stats.sigma_clipped_stats`_.
+    Extract a boxcar spectrum with radius ``box_rad`` (pixels) from the input
+    image using the input trace.  By default, outliers within the box are
+    clipped with 3.0 sigma rejection using `astropy.stats.sigma_clipped_stats`_.
 
 
     Parameters
@@ -431,7 +431,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         Trace down the center of the slit. Shape (nspec, nslits)
     slitmask : `numpy.ndarray`_
         Image where pixel values identify its parent slit, starting with 0.
-        Pixels with -1 are not part of any slit.  Shape must match `arcimg`.
+        Pixels with -1 are not part of any slit.  Shape must match ``arcimg``.
     arcimg : `numpy.ndarray`_
         Image to extract the arc from. This should be an arcimage or perhaps a
         frame with night sky lines. Shape (nspec, nspat)

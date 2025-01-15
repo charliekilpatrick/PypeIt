@@ -491,10 +491,6 @@ class BuildWaveCalib:
         wvc_bpm (`numpy.ndarray`_):
             Mask for slits attempted to have a wv_calib solution
     """
-
-    # TODO: Is this used anywhere?
-    frametype = 'wv_calib'
-
     def __init__(self, msarc, slits, spectrograph, par, lamps,
                  meta_dict=None, det=1, qa_path=None, msbpm=None):
 
@@ -527,6 +523,7 @@ class BuildWaveCalib:
         # Get the non-linear count level
         if self.msarc.is_mosaic:
             # if this is a mosaic we take the maximum value among all the detectors
+            # TODO: Why the maximum value and not the minimum value?
             self.nonlinear_counts = np.max([rawdets.nonlinear_counts() for rawdets in self.msarc.detector.detectors])
         else:
             self.nonlinear_counts = self.msarc.detector.nonlinear_counts()
@@ -606,20 +603,26 @@ class BuildWaveCalib:
 
         self.maskslits is updated for slits that fail
 
-        Args:
-            method : str
-              'simple' -- arc.simple_calib
-              'arclines' -- arc.calib_with_arclines
-              'holy-grail' -- wavecal.autoid.HolyGrail
-              'reidentify' -- wavecal.auotid.ArchiveReid
-              'identify' -- wavecal.identify.Identify
-              'full_template' -- wavecal.auotid.full_template
-            skip_QA (bool, optional)
-            prev_wvcalib (WaveCalib, optional):
-                Previous wavelength calibration
+        Parameters
+        ----------
+        method : str
 
-        Returns:
-            dict:  self.wv_calib
+            - 'simple' -- arc.simple_calib
+            - 'arclines' -- arc.calib_with_arclines
+            - 'holy-grail' -- wavecal.autoid.HolyGrail
+            - 'reidentify' -- wavecal.auotid.ArchiveReid
+            - 'identify' -- wavecal.identify.Identify
+            - 'full_template' -- wavecal.auotid.full_template
+
+        skip_QA : bool, optional
+            Flag to skip creation of the QA plot
+        prev_wvcalib : WaveCalib, optional
+            Previous wavelength calibration
+
+        Returns
+        -------
+        :class:`~pypeit.wavecalib.WaveCalib`:
+            Object with the 1D wavelength solution.
         """
         # Obtain a list of good slits
         ok_mask_idx = np.where(np.invert(self.wvc_bpm))[0]
