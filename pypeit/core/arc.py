@@ -22,8 +22,10 @@ from pypeit.core import fitting
 from IPython import embed
 
 
-def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigrej=3.0, func2d='legendre2d', debug=False):
-    """Routine to obtain the 2D wavelength solution for an echelle spectrograph. 
+def fit2darc(all_wv, all_pix, all_orders, nspec, nspec_coeff=4, norder_coeff=4, sigrej=3.0,
+             func2d='legendre2d', debug=False):
+    """
+    Routine to obtain the 2D wavelength solution for an echelle spectrograph. 
     This is calculated from the spec direction pixel-centroid and the order number 
     of identified arc lines. The fit is a simple least-squares with rejections.
 
@@ -55,8 +57,8 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     """
 
-    # Normalize  for pixels. Fits are performed in normalized units (pixels/(nspec-1) to be able to deal with various
-    # binnings.
+    # Normalize  for pixels. Fits are performed in normalized units
+    # (pixels/(nspec-1) to be able to deal with various binnings.
     min_spec = 0.0
     max_spec = 1.0
     xnspecmin1 = float(nspec-1)
@@ -82,9 +84,10 @@ def fit2darc(all_wv,all_pix,all_orders,nspec, nspec_coeff=4,norder_coeff=4,sigre
 
     # Fit the product of wavelength and order number with a 2d legendre polynomial
     all_wv_order = all_wv * all_orders
-    pypeitFit = fitting.robust_fit(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff), x2=all_orders,
-                                   function=func2d, maxiter=100, lower=sigrej, upper=sigrej, minx=min_spec,maxx=max_spec,
-                                   minx2=min_order, maxx2=max_order, use_mad=True, sticky=False)
+    pypeitFit = fitting.robust_fit(all_pix/xnspecmin1, all_wv_order, (nspec_coeff, norder_coeff),
+                                   x2=all_orders, function=func2d, maxiter=100, lower=sigrej,
+                                   upper=sigrej, minx=min_spec,maxx=max_spec, minx2=min_order,
+                                   maxx2=max_order, use_mad=True, sticky=False)
 
     # Report the RMS
     fin_rms = pypeitFit.calc_fit_rms(x2=all_orders, apply_mask=True)
@@ -148,7 +151,8 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
         # evaluate solution
         wv_order_mod = pypeitFit.eval(spec_vec_norm, x2=np.ones_like(spec_vec_norm)*ii)
         # Plot solution
-        plt.plot(wv_order_mod / ii, spec_vec_norm*xnspecmin1, color=(rr, gg, bb), linestyle='-', linewidth=2.5)
+        plt.plot(wv_order_mod / ii, spec_vec_norm*xnspecmin1, color=(rr, gg, bb), linestyle='-',
+                 linewidth=2.5)
 
         # Evaluate residuals at each order
         on_order = all_orders == ii
@@ -172,10 +176,10 @@ def fit2darc_global_qa(pypeitFit, nspec, outfile=None):
 
     plt.text(mx, np.max(spec_vec_norm*xnspecmin1), r'residuals $\times$100', \
              ha="right", va="top")
-    plt.title(r'Arc 2D FIT, norder_coeff={:d}, nspec_coeff={:d}, RMS={:5.3f} Ang*Order#'.format(
-        norder_coeff, nspec_coeff, rms_global))
+    plt.title(f'Arc 2D FIT, norder_coeff={norder_coeff}, nspec_coeff={nspec_coeff}, '
+              f'RMS={rms_global:.3f} Ang*Order#')
     plt.xlabel(r'Wavelength [$\AA$]')
-    plt.ylabel(r'Row [pixel]')
+    plt.ylabel('Row [pixel]')
 
     # Finish
     if outfile is not None:
@@ -253,7 +257,8 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
                 # evaluate solution
                 wv_order_mod = pypeitFit.eval(spec_vec_norm, x2=ii*np.ones_like(spec_vec_norm))
                 # Evaluate delta lambda
-                dwl = (wv_order_mod[-1] - wv_order_mod[0])/ii/xnspecmin1/(spec_vec_norm[-1] - spec_vec_norm[0])
+                dwl = (wv_order_mod[-1] - wv_order_mod[0]) / ii / xnspecmin1 \
+                            / (spec_vec_norm[-1] - spec_vec_norm[0])
 
                 # Estimate the residuals
                 on_order = all_orders == ii
@@ -268,8 +273,8 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
                 # Plot the fit
                 ax0.set_title('Order = {0:0.0f}'.format(ii))
-                ax0.plot(spec_vec_norm*xnspecmin1, wv_order_mod / ii / 10000., color=(rr, gg, bb), linestyle='-',
-                         linewidth=2.5)
+                ax0.plot(spec_vec_norm*xnspecmin1, wv_order_mod / ii / 10000., color=(rr, gg, bb),
+                         linestyle='-', linewidth=2.5)
                 ax0.scatter(this_pix[~this_msk], (wv_order_mod_resid[~this_msk] / ii / 10000.) + \
                             100. * resid_wl[~this_msk] / 10000., marker='x', color='black', \
                             linewidth=2.5, s=16.)
@@ -280,9 +285,9 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
                 ax0.set_ylabel(r'Wavelength [$\mu$m]')
 
                 # Plot the residuals
-                ax1.scatter(this_pix[~this_msk], (resid_wl[~this_msk] / dwl), marker='x', color='black', \
-                            linewidth=2.5, s=16.)
-                ax1.scatter(this_pix[this_msk], (resid_wl[this_msk] / dwl), color=(rr, gg, bb), \
+                ax1.scatter(this_pix[~this_msk], (resid_wl[~this_msk] / dwl), marker='x',
+                            color='black', linewidth=2.5, s=16.)
+                ax1.scatter(this_pix[this_msk], (resid_wl[this_msk] / dwl), color=(rr, gg, bb),
                             linewidth=2.5, s=16.)
                 ax1.axhline(y=0., color=(rr, gg, bb), linestyle=':', linewidth=2.5)
                 ax1.get_yaxis().set_label_coords(-0.15, 0.5)
@@ -291,10 +296,10 @@ def fit2darc_orders_qa(pypeitFit, nspec, outfile=None):
 
                 ax1.set_ylabel(r'Res. [pix]')
 
-                ax0.text(0.1, 0.8, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left", va="top",
-                         transform=ax0.transAxes)
-                ax0.text(0.1, 0.9, r'$\Delta\lambda$={0:.3f} $\AA$/Pixel'.format(np.abs(dwl)), ha="left", va="top",
-                         transform=ax0.transAxes)
+                ax0.text(0.1, 0.8, r'RMS={0:.3f} Pixel'.format(rms_order / np.abs(dwl)), ha="left",
+                         va="top", transform=ax0.transAxes)
+                ax0.text(0.1, 0.9, r'$\Delta\lambda$={0:.3f} $\AA$/Pixel'.format(np.abs(dwl)),
+                         ha="left", va="top", transform=ax0.transAxes)
                 ax0.get_yaxis().set_label_coords(-0.15, 0.5)
 
                 fig.add_subplot(ax0)
@@ -499,7 +504,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
         
         # TODO JFH Add cenfunc and std_func here, using median and the use_mad fix.
         arc_spec[:,islit] = stats.sigma_clipped_stats(arcimg[:,left:right],
-                                                      mask=np.invert(arcmask[:,left:right]),
+                                                      mask=np.logical_not(arcmask[:,left:right]),
                                                       sigma=3.0, axis=1, 
                                                       cenfunc = np.nanmedian, stdfunc=np.nanstd)[1]
     # Get the mask, set the masked values to 0, and return
@@ -508,6 +513,7 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
     return arc_spec, arc_spec_bpm, np.all(arc_spec_bpm, axis=0)
 
 
+# TODO: Use scipy.signal.find_peaks instead of this.
 def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
                  kpsh=False, valley=False, show=False, ax=None):
     """Detect peaks in data based on their amplitude and other features.
@@ -603,6 +609,10 @@ def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
     >>> detect_peaks(x, threshold = 2, show=True)
 
     """
+#    import datetime
+#    dtime = datetime.datetime.now(datetime.UTC).isoformat(timespec='milliseconds')
+#    np.savez_compressed(f'detect_peaks_inp_{dtime}.npz', x=x, mpg=[mph], mpd=[mpd], threshold=[threshold],
+#                        edge=[edge], kpsh=[kpsh], valley=[valley])
 
     x = np.atleast_1d(x).astype('float64')
     if x.size < 3:
@@ -801,7 +811,7 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
         cont_mask = peak_mask & gpm
         # If more than max_mask_frac of the nspec_available are getting masked than short circuit this masking
         #frac_mask = np.sum(np.invert(cont_mask))/float(nspec)
-        nmask = np.sum(np.invert(peak_mask[gpm]))
+        nmask = np.sum(np.logical_not(peak_mask[gpm]))
         if nmask > max_nmask:
             msgs.warn('Too many pixels {:d} masked in spectrum continuum definiton: frac_mask = {:5.3f} > {:5.3f} which is '
                       'max allowed. Only masking the {:d} largest values....'.format(nmask, nmask/nspec_available, max_mask_frac, max_nmask))
@@ -841,9 +851,9 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
             plt.plot(spec_vec[cont_mask], spec[cont_mask], color='cyan', markersize=3.0,
                      mfc='cyan', linestyle='None', fillstyle='full',
                      zorder=9, marker='o', label = 'Used for cont')
-            plt.plot(spec_vec[np.invert(cont_mask)], spec[np.invert(cont_mask)], color='red', markersize=5.0,
-                     mfc='red', linestyle='None', fillstyle='full',
-                     zorder=9, marker='o', label = 'masked for cont')
+            plt.plot(spec_vec[np.logical_not(cont_mask)], spec[np.logical_not(cont_mask)],
+                     color='red', markersize=5.0, mfc='red', linestyle='None', fillstyle='full',
+                     zorder=9, marker='o', label='masked for cont')
             plt.title(qa_title)
             plt.legend()
             plt.show()
@@ -1036,7 +1046,7 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
     #   - The Gaussian-fitted center and the center from `detect_lines`
     #     are not different by more than 0.75*FWHM
     #   - Width is finite, greater than 0, and less than FWHM_MAX/2.35
-    good = np.invert(np.isnan(twid)) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
+    good = np.isfinite(twid) & (twid > 0.0) & (twid < fwhm_max/2.35) & (tcent > 0.0) \
                 & (tcent < xrng[-1]) & (tampl_true < nonlinear_counts) \
                 & (np.abs(tcent-pixt) < fwhm*0.75)
     # Get the indices of the good measurements
@@ -1173,7 +1183,7 @@ def find_lines_qa(spec, cen, amp, good, bpm=None, thresh=None, nonlinear=None):
     pix = np.arange(_spec.size)
     plt.figure(figsize=(14, 6))
     plt.step(pix, _spec, color='k', where='mid', label='arc', lw=1.0)
-    plt.scatter(cen[np.invert(good)], amp[np.invert(good)], marker='+', color='C3', s=50,
+    plt.scatter(cen[np.logical_not(good)], amp[np.logical_not(good)], marker='+', color='C3', s=50,
                 label='bad for tilts')
     plt.scatter(cen[good], amp[good], color='C2', marker='+', s=50, label='good for tilts')
     if thresh is not None:
