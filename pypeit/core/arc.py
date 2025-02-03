@@ -13,7 +13,7 @@ from matplotlib import gridspec
 from matplotlib import pyplot as plt
 
 
-import scipy
+from scipy import interpolate, signal
 from astropy import stats
 
 from pypeit import msgs
@@ -384,7 +384,7 @@ def resize_slits2arc(shape_arc, shape_orig, trace_orig):
         spec_vec_orig = np.arange(nspec_orig)/float(nspec_orig - 1)
         spec_vec = np.arange(nspec)/float(nspec - 1)
         spat_ratio = float(nspat)/float(nspat_orig)
-        trace = (scipy.interpolate.interp1d(spec_vec_orig, spat_ratio*trace_orig, axis=0, bounds_error=False,fill_value='extrapolate'))(spec_vec)
+        trace = (interpolate.interp1d(spec_vec_orig, spat_ratio*trace_orig, axis=0, bounds_error=False,fill_value='extrapolate'))(spec_vec)
     else:
         trace = trace_orig
 
@@ -415,7 +415,7 @@ def resize_spec(spec_from, nspec_to):
     if nspec_from != nspec_to:
         spec_vec_from = np.arange(nspec_from)/float(nspec_from - 1)
         spec_vec_to = np.arange(nspec_to)/float(nspec_to - 1)
-        spec_to = (scipy.interpolate.interp1d(spec_vec_from, spec_from, axis=0, bounds_error=False,fill_value='extrapolate'))(spec_vec_to)
+        spec_to = (interpolate.interp1d(spec_vec_from, spec_from, axis=0, bounds_error=False,fill_value='extrapolate'))(spec_vec_to)
     else:
         spec_to = spec_from
 
@@ -513,169 +513,168 @@ def get_censpec(slit_cen, slitmask, arcimg, gpm=None, box_rad=3.0,
     return arc_spec, arc_spec_bpm, np.all(arc_spec_bpm, axis=0)
 
 
-# TODO: Use scipy.signal.find_peaks instead of this.
-def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
-                 kpsh=False, valley=False, show=False, ax=None):
-    """Detect peaks in data based on their amplitude and other features.
-    This is generally, but not exclusively, used for arc line detecting.
-
-    This code was taken from https://github.com/demotu/BMC
-
-    Parameters
-    ----------
-    x : array-like
-        1D vector with data
-    mph : {None, number}, optional (default = None)
-        detect peaks that are greater than minimum peak height (if parameter
-        `valley` is False) or peaks that are smaller than maximum peak height
-        (if parameter `valley` is True).
-    mpd : positive integer, optional (default = 1)
-        detect peaks that are at least separated by minimum peak distance (in
-        number of data).
-    threshold : positive number, optional (default = 0)
-        detect peaks (valleys) that are greater (smaller) than `threshold`
-        in relation to their immediate neighbors.
-    edge : {None, 'rising', 'falling', 'both'}, optional (default = 'rising')
-        for a flat peak, keep only the rising edge ('rising'), only the
-        falling edge ('falling'), both edges ('both'), or don't detect a
-        flat peak (None).
-    kpsh : bool, optional (default = False)
-        keep peaks with same height even if they are closer than `mpd`.
-    valley : bool, optional (default = False)
-        if True (1), detect valleys (local minima) instead of peaks.
-    show : bool, optional (default = False)
-        if True (1), plot data in matplotlib figure.
-    ax : `matplotlib.axes.Axes`_, optional
-        `matplotlib.axes.Axes`_ instance to use when plotting. If
-        None and ``show`` is True, a new instance is constructed.
-
-    Returns
-    -------
-    ind : array-like
-        1D vector with element indices containing the peaks in `x`
-
-    Notes
-    -----
-    The detection of valleys instead of peaks is performed internally by simply
-    negating the data::
-        
-        ind_valleys = detect_peaks(-x)
-
-    The function can handle NaN's
-
-    See this IPython Notebook [1]_.
-
-    .. code-block:: python
-
-        __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
-        __version__ = "1.0.5"
-        __license__ = "MIT"
-
-    Version history:
-
-        * '1.0.5': The sign of `mph` is inverted if parameter `valley` is True
-
-    References
-    ----------
-    .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/DetectPeaks.ipynb
-
-    Examples
-    --------
-    >>> from pypeit.core.arc import detect_peaks
-    >>> x = np.random.randn(100)
-    >>> x[60:81] = np.nan
-    >>> # detect all peaks and plot data
-    >>> ind = detect_peaks(x, show=True)
-    >>> print(ind)
-
-    >>> x = np.sin(2*np.pi*5*np.linspace(0, 1, 200)) + np.random.randn(200)/5
-    >>> # set minimum peak height = 0 and minimum peak distance = 20
-    >>> detect_peaks(x, mph=0, mpd=20, show=True)
-
-    >>> x = [0, 1, 0, 2, 0, 3, 0, 2, 0, 1, 0]
-    >>> # set minimum peak distance = 2
-    >>> detect_peaks(x, mpd=2, show=True)
-
-    >>> x = np.sin(2*np.pi*5*np.linspace(0, 1, 200)) + np.random.randn(200)/5
-    >>> # detection of valleys instead of peaks
-    >>> detect_peaks(x, mph=-1.2, mpd=20, valley=True, show=True)
-
-    >>> x = [0, 1, 1, 0, 1, 1, 0]
-    >>> # detect both edges
-    >>> detect_peaks(x, edge='both', show=True)
-
-    >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
-    >>> # set threshold = 2
-    >>> detect_peaks(x, threshold = 2, show=True)
-
-    """
-#    import datetime
-#    dtime = datetime.datetime.now(datetime.UTC).isoformat(timespec='milliseconds')
-#    np.savez_compressed(f'detect_peaks_inp_{dtime}.npz', x=x, mpg=[mph], mpd=[mpd], threshold=[threshold],
-#                        edge=[edge], kpsh=[kpsh], valley=[valley])
-
-    x = np.atleast_1d(x).astype('float64')
-    if x.size < 3:
-        return np.array([], dtype=int)
-    if valley:
-        x = -x
-        if mph is not None:
-            mph = -mph
-    # find indices of all peaks
-    dx = x[1:] - x[:-1]
-    # handle NaN's
-    indnan = np.where(np.isnan(x))[0]
-    if indnan.size:
-        x[indnan] = np.inf
-        dx[np.where(np.isnan(dx))[0]] = np.inf
-    ine, ire, ife = np.array([[], [], []], dtype=int)
-    if not edge:
-        ine = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) > 0))[0]
-    else:
-        if edge.lower() in ['rising', 'both']:
-            ire = np.where((np.hstack((dx, 0)) <= 0) & (np.hstack((0, dx)) > 0))[0]
-        if edge.lower() in ['falling', 'both']:
-            ife = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) >= 0))[0]
-    ind = np.unique(np.hstack((ine, ire, ife)))
-    # handle NaN's
-    if ind.size and indnan.size:
-        # NaN's and values close to NaN's cannot be peaks
-        ind = ind[np.in1d(ind, np.unique(np.hstack((indnan, indnan - 1, indnan + 1))), invert=True)]
-    # first and last values of x cannot be peaks
-    if ind.size and ind[0] == 0:
-        ind = ind[1:]
-    if ind.size and ind[-1] == x.size - 1:
-        ind = ind[:-1]
-    # remove peaks < minimum peak height
-    if ind.size and mph is not None:
-        ind = ind[x[ind] >= mph]
-    # remove peaks - neighbors < threshold
-    if ind.size and threshold > 0:
-        dx = np.min(np.vstack([x[ind] - x[ind - 1], x[ind] - x[ind + 1]]), axis=0)
-        ind = np.delete(ind, np.where(dx < threshold)[0])
-    # detect small peaks closer than minimum peak distance
-    if ind.size and mpd > 1:
-        ind = ind[np.argsort(x[ind], kind='stable')][::-1]  # sort ind by peak height
-        idel = np.zeros(ind.size, dtype=bool)
-        for i in range(ind.size):
-            if not idel[i]:
-                # keep peaks with the same height if kpsh is True
-                idel = idel | (ind >= ind[i] - mpd) & (ind <= ind[i] + mpd) \
-                       & (x[ind[i]] > x[ind] if kpsh else True)
-                idel[i] = 0  # Keep current peak
-        # remove the small peaks and sort back the indices by their occurrence
-        ind = np.sort(ind[~idel])
-
-    if show:
-        if indnan.size:
-            x[indnan] = np.nan
-        if valley:
-            x = -x
-            if mph is not None:
-                mph = -mph
-        plot_detect_peaks(x, mph, mpd, threshold, edge, valley, ax, ind)
-
-    return ind
+#def detect_peaks(x, mph=None, mpd=1, threshold=0, edge='rising',
+#                 kpsh=False, valley=False, show=False, ax=None):
+#    """Detect peaks in data based on their amplitude and other features.
+#    This is generally, but not exclusively, used for arc line detecting.
+#
+#    This code was taken from https://github.com/demotu/BMC
+#
+#    Parameters
+#    ----------
+#    x : array-like
+#        1D vector with data
+#    mph : {None, number}, optional (default = None)
+#        detect peaks that are greater than minimum peak height (if parameter
+#        `valley` is False) or peaks that are smaller than maximum peak height
+#        (if parameter `valley` is True).
+#    mpd : positive integer, optional (default = 1)
+#        detect peaks that are at least separated by minimum peak distance (in
+#        number of data).
+#    threshold : positive number, optional (default = 0)
+#        detect peaks (valleys) that are greater (smaller) than `threshold`
+#        in relation to their immediate neighbors.
+#    edge : {None, 'rising', 'falling', 'both'}, optional (default = 'rising')
+#        for a flat peak, keep only the rising edge ('rising'), only the
+#        falling edge ('falling'), both edges ('both'), or don't detect a
+#        flat peak (None).
+#    kpsh : bool, optional (default = False)
+#        keep peaks with same height even if they are closer than `mpd`.
+#    valley : bool, optional (default = False)
+#        if True (1), detect valleys (local minima) instead of peaks.
+#    show : bool, optional (default = False)
+#        if True (1), plot data in matplotlib figure.
+#    ax : `matplotlib.axes.Axes`_, optional
+#        `matplotlib.axes.Axes`_ instance to use when plotting. If
+#        None and ``show`` is True, a new instance is constructed.
+#
+#    Returns
+#    -------
+#    ind : array-like
+#        1D vector with element indices containing the peaks in `x`
+#
+#    Notes
+#    -----
+#    The detection of valleys instead of peaks is performed internally by simply
+#    negating the data::
+#        
+#        ind_valleys = detect_peaks(-x)
+#
+#    The function can handle NaN's
+#
+#    See this IPython Notebook [1]_.
+#
+#    .. code-block:: python
+#
+#        __author__ = "Marcos Duarte, https://github.com/demotu/BMC"
+#        __version__ = "1.0.5"
+#        __license__ = "MIT"
+#
+#    Version history:
+#
+#        * '1.0.5': The sign of `mph` is inverted if parameter `valley` is True
+#
+#    References
+#    ----------
+#    .. [1] http://nbviewer.ipython.org/github/demotu/BMC/blob/master/notebooks/DetectPeaks.ipynb
+#
+#    Examples
+#    --------
+#    >>> from pypeit.core.arc import detect_peaks
+#    >>> x = np.random.randn(100)
+#    >>> x[60:81] = np.nan
+#    >>> # detect all peaks and plot data
+#    >>> ind = detect_peaks(x, show=True)
+#    >>> print(ind)
+#
+#    >>> x = np.sin(2*np.pi*5*np.linspace(0, 1, 200)) + np.random.randn(200)/5
+#    >>> # set minimum peak height = 0 and minimum peak distance = 20
+#    >>> detect_peaks(x, mph=0, mpd=20, show=True)
+#
+#    >>> x = [0, 1, 0, 2, 0, 3, 0, 2, 0, 1, 0]
+#    >>> # set minimum peak distance = 2
+#    >>> detect_peaks(x, mpd=2, show=True)
+#
+#    >>> x = np.sin(2*np.pi*5*np.linspace(0, 1, 200)) + np.random.randn(200)/5
+#    >>> # detection of valleys instead of peaks
+#    >>> detect_peaks(x, mph=-1.2, mpd=20, valley=True, show=True)
+#
+#    >>> x = [0, 1, 1, 0, 1, 1, 0]
+#    >>> # detect both edges
+#    >>> detect_peaks(x, edge='both', show=True)
+#
+#    >>> x = [-2, 1, -2, 2, 1, 1, 3, 0]
+#    >>> # set threshold = 2
+#    >>> detect_peaks(x, threshold = 2, show=True)
+#
+#    """
+##    import datetime
+##    dtime = datetime.datetime.now(datetime.UTC).isoformat(timespec='milliseconds')
+##    np.savez_compressed(f'detect_peaks_inp_{dtime}.npz', x=x, mpg=[mph], mpd=[mpd], threshold=[threshold],
+##                        edge=[edge], kpsh=[kpsh], valley=[valley])
+#
+#    x = np.atleast_1d(x).astype('float64')
+#    if x.size < 3:
+#        return np.array([], dtype=int)
+#    if valley:
+#        x = -x
+#        if mph is not None:
+#            mph = -mph
+#    # find indices of all peaks
+#    dx = x[1:] - x[:-1]
+#    # handle NaN's
+#    indnan = np.where(np.isnan(x))[0]
+#    if indnan.size:
+#        x[indnan] = np.inf
+#        dx[np.where(np.isnan(dx))[0]] = np.inf
+#    ine, ire, ife = np.array([[], [], []], dtype=int)
+#    if not edge:
+#        ine = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) > 0))[0]
+#    else:
+#        if edge.lower() in ['rising', 'both']:
+#            ire = np.where((np.hstack((dx, 0)) <= 0) & (np.hstack((0, dx)) > 0))[0]
+#        if edge.lower() in ['falling', 'both']:
+#            ife = np.where((np.hstack((dx, 0)) < 0) & (np.hstack((0, dx)) >= 0))[0]
+#    ind = np.unique(np.hstack((ine, ire, ife)))
+#    # handle NaN's
+#    if ind.size and indnan.size:
+#        # NaN's and values close to NaN's cannot be peaks
+#        ind = ind[np.in1d(ind, np.unique(np.hstack((indnan, indnan - 1, indnan + 1))), invert=True)]
+#    # first and last values of x cannot be peaks
+#    if ind.size and ind[0] == 0:
+#        ind = ind[1:]
+#    if ind.size and ind[-1] == x.size - 1:
+#        ind = ind[:-1]
+#    # remove peaks < minimum peak height
+#    if ind.size and mph is not None:
+#        ind = ind[x[ind] >= mph]
+#    # remove peaks - neighbors < threshold
+#    if ind.size and threshold > 0:
+#        dx = np.min(np.vstack([x[ind] - x[ind - 1], x[ind] - x[ind + 1]]), axis=0)
+#        ind = np.delete(ind, np.where(dx < threshold)[0])
+#    # detect small peaks closer than minimum peak distance
+#    if ind.size and mpd > 1:
+#        ind = ind[np.argsort(x[ind], kind='stable')][::-1]  # sort ind by peak height
+#        idel = np.zeros(ind.size, dtype=bool)
+#        for i in range(ind.size):
+#            if not idel[i]:
+#                # keep peaks with the same height if kpsh is True
+#                idel = idel | (ind >= ind[i] - mpd) & (ind <= ind[i] + mpd) \
+#                       & (x[ind[i]] > x[ind] if kpsh else True)
+#                idel[i] = 0  # Keep current peak
+#        # remove the small peaks and sort back the indices by their occurrence
+#        ind = np.sort(ind[~idel])
+#
+#    if show:
+#        if indnan.size:
+#            x[indnan] = np.nan
+#        if valley:
+#            x = -x
+#            if mph is not None:
+#                mph = -mph
+#        plot_detect_peaks(x, mph, mpd, threshold, edge, valley, ax, ind)
+#
+#    return ind
 
 
 def plot_detect_peaks(x, mph, mpd, threshold, edge, valley, ax, ind):
@@ -799,12 +798,14 @@ def iter_continuum(spec, gpm=None, fwhm=4.0, sigthresh = 2.0, sigrej=3.0, niter_
                                                         sigma_upper=sigrej, cenfunc='median', stdfunc=utils.nan_mad_std)
         # be very liberal in determining threshold for continuum determination
         thresh = med + sigthresh*stddev
-        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75, show=debug_peak_find)
+        pixt_now, _ = signal.find_peaks(spec_sub, height=thresh, distance=fwhm*0.75)
+#        pixt_now = detect_peaks(spec_sub, mph=thresh, mpd=fwhm*0.75, show=debug_peak_find)
         # mask out the peaks we find for the next continuum iteration
         cont_mask_fine = np.ones_like(cont_now)
         cont_mask_fine[pixt_now] = 0.0
         if cont_mask_neg is True:
-            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75, show=debug_peak_find)
+            pixt_now_neg, _ = signal.find_peaks(-spec_sub, height=thresh, distance=fwhm*0.75)
+#            pixt_now_neg = detect_peaks(-spec_sub, mph=thresh, mpd=fwhm * 0.75, show=debug_peak_find)
             cont_mask_fine[pixt_now_neg] = 0.0
         # cont_mask is the mask for defining the continuum regions: True is good,  False is bad
         peak_mask = (utils.smooth(cont_mask_fine,mask_odd) > 0.999)
@@ -1027,7 +1028,8 @@ def detect_lines(censpec, sigdetect=5.0, fwhm=4.0, fit_frac_fwhm=1.25, input_thr
         stddev = 1.0
 
     # Find the peak locations
-    pixt = detect_peaks(arc, mph=thresh, mpd=fwhm*min_pkdist_frac_fwhm, show=debug_peak_find)
+    pixt, _ = signal.find_peaks(arc, height=thresh, distance=fwhm*min_pkdist_frac_fwhm)
+#    pixt = detect_peaks(arc, mph=thresh, mpd=fwhm*min_pkdist_frac_fwhm, show=debug_peak_find)
 
     # Peak up the centers and determine the widths using a Gaussian fit
     nfitpix = np.round(fit_frac_fwhm*fwhm).astype(int)
