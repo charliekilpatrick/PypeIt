@@ -100,24 +100,43 @@ class CoAdd1D:
         Runs the coadding
         """
 
-        # Coadd the data
-        # if there are multiple orders/slits, the stacks will be extracted from the coadd1d object, otherwise it'll be None
-        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, self.order_stacks = self.coadd()
+        # Coadd the data.  If there are multiple orders/slits, the stacks will
+        # be extracted from the coadd1d object, otherwise it'll be None
+        self.wave_grid_mid, self.wave_coadd, self.flux_coadd, self.ivar_coadd, self.gpm_coadd, \
+                self.order_stacks = self.coadd()
 
-        # Scale to a filter magnitude?
-        if self.par['filter'] != 'none':
-            scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
-            self.flux_coadd *= scale
-            self.ivar_coadd = self.ivar_coadd / scale**2
+        if self.par['filter'] == 'none':
+            return
 
+        # Rescale the match the provided magnitude
 
+        # TODO: This needs to be tested!!    
+#        scale = flux_calib.scale_in_filter(self.wave_coadd, self.flux_coadd, self.gpm_coadd, self.par)
+        if self.par['filter_mask'] is not None:
+            # Setup the good pixel mask
+            gpm = np.ones(self.wave_coadd.size, dtype=float)
+            # Parse the range string
+            rngs = [list(map(eval, rng.split(':'))) 
+                        for rng in self.par['filter_mask'].split(',')]
+            # Apply the mask
+            for rng in rngs:
+                gpm[(self.wave_coadd > rng[0]) & (self.wave_coadd < rng[1])] = False
+            # Join it with the existing one
+            gpm &= self.gpm_coadd
+        else:
+            gpm = self.gpm_coadd
+        band_wave, band_thru = io.load_filter_file(self.par['filter'])
+        scale = flux_calib.magnitude_rescale_factor(
+            self.par['filter_mag'], self.wave_coadd, self.flux_coadd,
+            band_wave, band_thru, gpm=gpm, system=self.par['mag_type'])
+        self.flux_coadd *= scale
+        self.ivar_coadd = self.ivar_coadd / scale**2
 
     def load(self):
         """
         Load the arrays we need for performing coadds. Dummy method overloaded by children.
         """
         msgs.error('This method is undefined in the base classes and should only be called by the subclasses')
-
 
     def save(self, coaddfile, telluric=None, obj_model=None, overwrite=True):
         """

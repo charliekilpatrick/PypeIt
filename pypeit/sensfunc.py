@@ -8,7 +8,7 @@ import inspect
 from IPython import embed
 
 import numpy as np
-import scipy.interpolate
+from scipy import interpolate
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
@@ -21,15 +21,11 @@ from pypeit import utils
 from pypeit.core import coadd
 from pypeit.core import flux_calib
 from pypeit.core import telluric
-from pypeit.core import fitting
 from pypeit.core.wavecal import wvutils
 from pypeit.core import meta
-from pypeit.core import flat
-from pypeit.core.moment import moment1d
 
 from pypeit.spectrographs.util import load_spectrograph
 from pypeit import datamodel
-from pypeit import flatfield
 
 
 # TODO Add the data model up here as a standard thing using DataContainer.
@@ -518,10 +514,10 @@ class SensFunc(datamodel.DataContainer):
         zeros = zeropoint_splice_1d == 0.
         if np.any(zeros):
             msgs.info("Interpolating over gaps (and extrapolating with fill_value=1, if need be)")
-            interp_func = scipy.interpolate.interp1d(wave_splice_1d[np.invert(zeros)],
-                                                     zeropoint_splice_1d[np.invert(zeros)],
-                                                     kind='nearest', fill_value=0.,
-                                                     bounds_error=False) #
+            interp_func = interpolate.interp1d(wave_splice_1d[np.invert(zeros)],
+                                               zeropoint_splice_1d[np.invert(zeros)],
+                                               kind='nearest', fill_value=0.,
+                                               bounds_error=False) #
             #kind='nearest', fill_value='extrapoloate', bounds_error=False)
             #  extrapolate fails for JXP, even on 1.4.1
             zero_values = interp_func(wave_splice_1d[zeros])
@@ -734,8 +730,8 @@ class SensFunc(datamodel.DataContainer):
         fig.savefig(self.fstdfile)
 
         #save the model that was used
-        model_interp_func = scipy.interpolate.interp1d(self.std_dict['wave'].value, self.std_dict['flux'].value,
-                                                       bounds_error=False, fill_value='extrapolate')
+        model_interp_func = interpolate.interp1d(self.std_dict['wave'].value, self.std_dict['flux'].value,
+                                                 bounds_error=False, fill_value='extrapolate')
         model_flux_sav = np.zeros_like(self.sens['SENS_FLUXED_STD_FLAM'])
         for iorddet in range(self.sens['SENS_FLUXED_STD_WAVE'].shape[0]):
             wave_gpm = self.sens['SENS_FLUXED_STD_WAVE'][iorddet] > 1.0
@@ -967,7 +963,7 @@ class IRSensFunc(SensFunc):
         e = self.telluric.model['IND_UPPER']+1
         # TODO: Not sure what else to do here
         if self.log10_blaze_function is not None:
-            log10_blaze_function = scipy.interpolate.interp1d(
+            log10_blaze_function = interpolate.interp1d(
                 self.sens['SENS_WAVE'][iorddet,s[iorddet]:e[iorddet]],
                 self.sens['SENS_LOG10_BLAZE_FUNCTION'][iorddet,s[iorddet]:e[iorddet]],
                 kind='linear', bounds_error=False, fill_value='extrapolate')(wave)
@@ -1074,9 +1070,9 @@ class UVISSensFunc(SensFunc):
         zeropoint : `numpy.ndarray`_, shape is (nspec,)
         """
         # This routine can extrapolate
-        return scipy.interpolate.interp1d(self.sens['SENS_WAVE'][iorddet,:],
-                                          self.sens['SENS_ZEROPOINT_FIT'][iorddet,:],
-                                          bounds_error=False, fill_value='extrapolate')(wave)
+        return interpolate.interp1d(self.sens['SENS_WAVE'][iorddet,:],
+                                    self.sens['SENS_ZEROPOINT_FIT'][iorddet,:],
+                                    bounds_error=False, fill_value='extrapolate')(wave)
 
 
 

@@ -1652,108 +1652,300 @@ def standard_zeropoint(wave, Nlam, Nlam_ivar, Nlam_gpm, flam_true, mask_recomb=N
     return zeropoint_data, zeropoint_fitmask, zeropoint_fit, zeropoint_fit_gpm
 
 
-def load_filter_file(filter):
+#def load_filter_file(filter):
+#    """
+#    Load a system response curve for a given filter.
+#    All supported filters can be found at `pypeit.data.filters`_
+#
+#    Parameters
+#    ----------
+#    filter: str
+#        Name of filter
+#
+#    Returns
+#    -------
+#    wave: `numpy.ndarray`_
+#        wavelength in units of Angstrom
+#    instr: `numpy.ndarray`_
+#        filter throughput
+#
+#    """
+#
+#    filter_file = dataPaths.filters.get_file_path('filter_list.ascii')
+#    tbl = table.Table.read(filter_file, format='ascii')
+#
+#    allowed_options = tbl['filter'].data
+#
+#    # Check
+#    if filter not in allowed_options:
+#        msgs.error("PypeIt is not ready for filter = {}".format(filter))
+#
+#    trans_file = dataPaths.filters.get_file_path('filtercurves.fits')
+#    trans = io.fits_open(trans_file)
+#    wave = trans[filter].data['lam']  # Angstroms
+#    instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
+#    keep = instr > 0.
+#    # Parse
+#    wave = wave[keep]
+#    instr = instr[keep]
+#
+#    # Return
+#    return wave, instr
+
+## TODO Replace this stuff wth calls to the astropy speclite package.
+#def scale_in_filter(wave, flux, gpm, scale_dict):
+#    """
+#    Scale spectra to input magnitude in a given filter
+#
+#    Parameters
+#    ----------
+#    wave : `numpy.ndarray`_
+#        spectral wavelength array
+#    flux : `numpy.ndarray`_
+#        flux density array
+#    gpm : boolean `numpy.ndarray`_
+#        Good pixel mask array
+#    scale_dict : :class:`~pypeit.par.pypeitpar.Coadd1DPar`
+#        Object with filter and magnitude data.
+#
+#    Returns
+#    -------
+#    scale : float
+#        scale value for the flux, i.e. ``newflux = flux * scale``
+#    """
+#
+#    # Mask further?
+#    if scale_dict['filter_mask'] is not None:
+#        # Funny formatting
+#        if isinstance(scale_dict['filter_mask'], str):
+#            regions = scale_dict['filter_mask'].split(',')
+#        else:
+#            regions = scale_dict['filter_mask']
+#        for region in regions:
+#            mask = region.split(':')
+#            gpm[(wave > float(mask[0])) & (wave < float(mask[1]))] = False
+#    mag_type = scale_dict['mag_type']
+#
+#    # Parse the spectrum
+#    wave = wave[gpm]
+#    flux = flux[gpm]
+#
+#    # Grab the instrument response function
+#    msgs.info("Integrating spectrum in filter: {}".format(scale_dict['filter']))
+#    fwave, trans = io.load_filter_file(scale_dict['filter'])
+#    tfunc = interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
+#
+#    # TODO this expression below is incorrect for irregular gridded wavelengths. FIX
+#    # Convolve
+#    allt = tfunc(wave)
+#    wflam = np.sum(flux*allt)/np.sum(allt)* PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.AA
+#
+#    mean_wv = np.sum(fwave*trans)/np.sum(trans) * units.AA
+#
+#    #
+#    if mag_type == 'AB':
+#        # Convert flam to AB magnitude
+#        fnu = wflam * mean_wv**2 / constants.c
+#        # Apparent AB
+#        AB = -2.5 * np.log10(fnu.to('erg/s/cm**2/Hz').value) - 48.6
+#        # Scale factor
+#        Dm = AB - scale_dict['filter_mag']
+#        scale = np.power(10.0,(Dm/2.5))
+#        msgs.info("Scaling spectrum by {}".format(scale))
+#    else:
+#        msgs.error("Bad magnitude type")
+#
+#    return scale
+
+
+def magnitude_rescale_factor(new_mag, wave, flux, band_wave, band_thru, gpm=None, system='AB'):
     """
-    Load a system response curve for a given filter.
-    All supported filters can be found at `pypeit.data.filters`_
+    Calculate the scale factor required to renormalize the spectrum to the given magnitude.
 
     Parameters
     ----------
-    filter: str
-        Name of filter
+    new_mag : :obj:`float`
+        New magnitude
+    wave : `numpy.ndarray`_
+        Spectrum wavelengths in angstroms
+    flux : `numpy.ndarray`_
+        Flux densityin 1e-17 erg / s / cm**2 / angstrom
+    band_wave : `numpy.ndarray`_
+        Wavelengths (angstroms) with bandpass throughput samples
+    band_thru : `numpy.ndarray`_
+        Bandpass throughput
+    gpm : `numpy.ndarray`_, optional
+        Good pixel mask for the input spectrum
+    system : str, optional
+        Name of the magnitude system to use.  Currently must be AB.
 
     Returns
     -------
-    wave: `numpy.ndarray`_
-        wavelength in units of Angstrom
-    instr: `numpy.ndarray`_
-        filter throughput
-
+    :obj:`float`
+        The calculated scale factor
     """
+    dmag = spectrum_magnitude(wave, flux, band_wave, band_thru, gpm=gpm, system=system) - new_mag
+    return 10**(dmag/2.5)
 
-    filter_file = dataPaths.filters.get_file_path('filter_list.ascii')
-    tbl = table.Table.read(filter_file, format='ascii')
 
-    allowed_options = tbl['filter'].data
-
-    # Check
-    if filter not in allowed_options:
-        msgs.error("PypeIt is not ready for filter = {}".format(filter))
-
-    trans_file = dataPaths.filters.get_file_path('filtercurves.fits')
-    trans = io.fits_open(trans_file)
-    wave = trans[filter].data['lam']  # Angstroms
-    instr = trans[filter].data['Rlam']  # Am keeping in atmospheric terms
-    keep = instr > 0.
-    # Parse
-    wave = wave[keep]
-    instr = instr[keep]
-
-    # Return
-    return wave, instr
-
-# TODO Replace this stuff wth calls to the astropy speclite package.
-def scale_in_filter(wave, flux, gpm, scale_dict):
+def spectrum_magnitude(wave, flux, band_wave, band_thru, gpm=None, system='AB'):
     """
-    Scale spectra to input magnitude in a given filter
+    Calculate the broadband magnitude of a spectrum.
 
     Parameters
     ----------
     wave : `numpy.ndarray`_
-        spectral wavelength array
+        Spectrum wavelengths in angstroms
     flux : `numpy.ndarray`_
-        flux density array
-    gpm : boolean `numpy.ndarray`_
-        Good pixel mask array
-    scale_dict : :class:`~pypeit.par.pypeitpar.Coadd1DPar`
-        Object with filter and magnitude data.
+        Flux densityin 1e-17 erg / s / cm**2 / angstrom
+    band_wave : `numpy.ndarray`_
+        Wavelengths (angstroms) with bandpass throughput samples
+    band_thru : `numpy.ndarray`_
+        Bandpass throughput
+    gpm : `numpy.ndarray`_, optional
+        Good pixel mask for the input spectrum
+    system : str, optional
+        Name of the magnitude system to use.  Currently must be AB.
 
     Returns
     -------
-    scale : float
-        scale value for the flux, i.e. ``newflux = flux * scale``
+    :obj:`float`
+        Magnitude of the spectrum within the provided bandpass
     """
+    if system != 'AB':
+        msgs.error('Magnitudes must be calculated in the AB system in pypeit.')
 
-    # Mask further?
-    if scale_dict['filter_mask'] is not None:
-        # Funny formatting
-        if isinstance(scale_dict['filter_mask'], str):
-            regions = scale_dict['filter_mask'].split(',')
-        else:
-            regions = scale_dict['filter_mask']
-        for region in regions:
-            mask = region.split(':')
-            gpm[(wave > float(mask[0])) & (wave < float(mask[1]))] = False
-    mag_type = scale_dict['mag_type']
+    # Interpolate the throughput at the locations of the spectrum samples
+    _thru = interpolate.interp1d(band_wave, band_thru, bounds_error=False, fill_value=0.)(wave)
+    # Get the wavelength step per pixel
+    dw = angstroms_per_pixel(wave, regular=False)
+    # Convert the mask, if provided
+    _gpm = 1. if gpm is None else gpm.astype(float)
+    # Calculate the denominator (so that it's only done once)
+    denom = np.sum(_thru * _gpm * dw)
+    # Get the mean wavelength and flux over the band.
+    # Flux is in units of 1e-17 erg / s / cm**2 / ang
+    mean_wave = np.sum(wave * _thru * _gpm * dw) / denom
+    mean_flux = np.sum(flux * _thru * _gpm * dw) / denom
+    # Convert from f_lambda (in 1e-17 erg/s/cm**2/ang) to f_nu (in microjanskys)
+    mean_fnu = convert_flux_density(mean_wave, mean_flux)
+    # NOTE: This is identically -2.5*numpy.log10(fnu) - 48.6,
+    # just accounting for the units of fnu
+    return -2.5*np.log10(mean_fnu) + 23.9
 
-    # Parse the spectrum
-    wave = wave[gpm]
-    flux = flux[gpm]
 
-    # Grab the instrument response function
-    msgs.info("Integrating spectrum in filter: {}".format(scale_dict['filter']))
-    fwave, trans = load_filter_file(scale_dict['filter'])
-    tfunc = interpolate.interp1d(fwave, trans, bounds_error=False, fill_value=0.)
+def angstroms_per_pixel(wave, log=False, base=10.0, regular=True):
+    """
+    Return a vector with the angstroms per pixel at each channel.
 
-    # TODO this expression below is incorrect for irregular gridded wavelengths. FIX
-    # Convolve
-    allt = tfunc(wave)
-    wflam = np.sum(flux*allt)/np.sum(allt)* PYPEIT_FLUX_SCALE*units.erg/units.s/units.cm**2/units.AA
+    When ``regular=True``, the function assumes that the wavelengths are
+    either sampled linearly or geometrically.  Otherwise, it calculates
+    the size of each pixel as the difference between the wavelength
+    coordinates.  The first and last pixels are assumed to have a width
+    as determined by assuming the coordinate is at its center.
 
-    mean_wv = np.sum(fwave*trans)/np.sum(trans) * units.AA
+    .. note::
 
-    #
-    if mag_type == 'AB':
-        # Convert flam to AB magnitude
-        fnu = wflam * mean_wv**2 / constants.c
-        # Apparent AB
-        AB = -2.5 * np.log10(fnu.to('erg/s/cm**2/Hz').value) - 48.6
-        # Scale factor
-        Dm = AB - scale_dict['filter_mag']
-        scale = np.power(10.0,(Dm/2.5))
-        msgs.info("Scaling spectrum by {}".format(scale))
-    else:
-        msgs.error("Bad magnitude type")
+        If the ``regular`` is False and ``log`` is True, the code does *not*
+        assume the wavelength coordinates are at the geometric center of the
+        pixel.
 
-    return scale
+    Parameters
+    ----------
+    wave : `numpy.ndarray`_
+        (Geometric) centers of the spectrum pixels in angstroms.  Must be 1D.
+    log : `numpy.ndarray`_, optional
+        The vector is geometrically sampled.
+    base : :obj:`float`, optional
+        Base of the logarithm used in the geometric sampling.
+    regular : :obj:`bool`, optional
+        Assume the vector is regularly sampled.
+
+    Returns
+    -------
+    `numpy.ndarray`_
+        The angstroms per pixel.
+    """
+    if regular:
+        dw = np.mean(np.diff(np.log(wave))/np.log(base) if log else np.diff(wave))
+        return dw*wave*np.log(base) if log else np.full(wave.shape, dw)
+    return np.diff([(3*wave[0]-wave[1])/2] + ((wave[1:] + wave[:-1])/2).tolist() 
+                   + [(3*wave[-1]-wave[-2])/2])
+
+
+def convert_flux_density(wave, flux, error=None, density='ang'):
+    r"""
+    Convert a spectrum with flux per unit wavelength to per unit
+    frequency or vice versa.
+
+    For converting from per unit wavelength, this function returns
+    
+    .. math::
+        
+        F_{\nu} = F_{\lambda} \frac{d\lambda}{d\nu} = F_{\lambda}
+        \frac{\lambda^2}{c}.
+
+    The spectrum independent variable (`wave`) is always expected to
+    be the wavelength in angstroms. The input/output units always
+    expect :math:`F_{\lambda}` in :math:`10^{-17}\ {\rm erg\ s}^{-1}\
+    {\rm cm}^{-2}\ {\rm A}^{-1}` and :math:`F_{\nu}` in microjanskys
+    (:math:`10^{-29} {\rm erg\ s}^{-1}\ {\rm cm}^{-2}\ {\rm
+    Hz}^{-1}`). Beyond this, the function is ignorant of the
+    input/output units. For example, if you provide the function with
+    an input spectrum with :math:`F_{\lambda}` in :math:`10^{-11}\
+    {\rm erg\ s}^{-1}\ {\rm cm}^{-2}\ {\rm A}^{-1}`, the output will
+    be :math:`F_{\nu}` in Janskys.
+
+    Parameters
+    ----------
+    wave : :obj:`float`, array-like
+        The vector with the wavelengths in angstroms.
+    flux : :obj:`float`, array-like
+        The vector with the flux density; cf. `density`.
+    error : :obj:`float`, array-like, optional
+        The error in the flux measurements. If None, no errors are returned.
+    density : :obj:`str`, optional
+        The density unit of the *input* spectrum.  Must be either 'ang' or 'Hz'.
+        If the input spectrum is :math:`F_{\lambda}` (`density='ang'`), the
+        returned spectrum is :math:`F_{\nu}`.
+
+    Returns
+    -------
+    :obj:`float`, `numpy.ndarray`_ :obj:`tuple`
+        The flux with the converted units. If the spectrum errors are not
+        provided, only the flux value or array is returned.
+
+    Raises
+    ------
+    PypeItError:
+        Raised if the `wave` and `flux` arguments do not have the same shape.
+    """
+    # Set to be at least vectors
+    _wave = np.atleast_1d(wave)
+    _flux = np.atleast_1d(flux)
+    if _wave.shape != _flux.shape:
+        msgs.error('Wavelength and flux arrays must have the same shape.')
+    if error is not None:
+        _error = np.atleast_1d(error)
+        if _error.shape != _flux.shape:
+            msgs.error('Error and flux arrays must have the same shape.')
+    if density == 'ang':
+        # Convert Flambda to Fnu
+        factor = _wave**2 * 1e12 / constants.c.to('angstrom/s').value
+        fnu = _flux*factor
+        if error is not None:
+            fnu_err = _error*factor
+            return (fnu[0], fnu_err[0]) if isinstance(flux, float) else (fnu, fnu_err)
+        return fnu[0] if isinstance(flux, float) else fnu
+    if density == 'Hz':
+        # Convert Fnu to Flambda
+        factor = constants.c.to('angstrom/s').value / 1e12 / _wave**2
+        flambda = _flux*factor
+        if error is not None:
+            flambda_err = _error*factor
+            return (flambda[0], flambda_err[0]) if isinstance(flux, float) \
+                        else (flambda, flambda_err)
+        return flambda[0] if isinstance(flux, float) else flambda
+    msgs.error('Density units must be either \'ang\' or \'Hz\'.')
+
 

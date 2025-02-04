@@ -10,7 +10,6 @@ Provides a set of I/O routines.
 import os
 from pathlib import Path
 import importlib
-import glob
 import sys
 import warnings
 import gzip
@@ -21,6 +20,7 @@ from IPython import embed
 
 import numpy
 
+from astropy import units
 from astropy.io import fits
 from astropy.table import Table
 
@@ -1000,5 +1000,108 @@ def load_sky_spectrum(sky_file: str) -> xspectrum1d.XSpectrum1D:
     """
     path = dataPaths.sky_spec.get_file_path(sky_file)
     return xspectrum1d.XSpectrum1D.from_file(str(path))
+
+
+def load_filter_file(inp):
+    """
+    Load a bandpass filter response curve.
+
+    Parameters
+    ----------
+    inp : str, `Path`_
+        The name of a filter with a response curve provided by pypeit, or the
+        name/path to a file with the filter response data.
+
+    Returns
+    -------
+    wave : `numpy.ndarray`_
+        Wavelength in units of Angstrom
+    thru : `numpy.ndarray`_
+        Filter throughput curve
+    """
+    _path = Path(inp).absolute()
+    if _path.isfile():
+        msgs.info(f'Attempting to read filter data from {_path}.')
+        data = Table.read(_path)
+        wave = data['wave']
+        thru = data['thru']
+    else:
+        trans_file = dataPaths.filters.get_file_path('filtercurves.fits')
+        filter_data = io.fits.open(trans_file)
+        if inp in filter_data:
+            wave = filter_data[inp].data['lam']  # Angstroms
+            thru = filter_data[inp].data['Rlam']  # Am keeping in atmospheric terms
+        else:
+            msgs.error(f'{inp} is not a known filter name or a file on disk.  Filter identifiers '
+                       'with response functions provided by pypeit are: '
+                       f'{", ".join([h.name for h in hdu[1:]])}')
+    keep = thru > 0
+    return wave[keep], thru[keep]
+
+
+def load_extinction_data(extinctfilepar, longitude, latitude, toler=5. * units.deg):
+    """
+    Find the best extinction file to use, based on longitude and latitude.
+    Loads it and returns a Table
+
+    Parameters
+    ----------
+    extinctfilepar : str
+        The sensfunc['extinct_file'] parameter, used to determine
+        which extinction file to load.
+    longitude : float
+        Geocentric longitude in degrees.
+    latitude : float
+        Geocentric latitude in degrees.
+    toler : `astropy.coordinates.Angle`_, optional
+        Tolerance for matching detector to site (5 deg)
+
+    Returns
+    -------
+    ext_file : `astropy.table.Table`_
+        astropy Table containing the 'wavelength', 'extinct' data for AM=1.
+    """
+    # Default Behavior
+    if extinctfilepar == 'closest':
+        # Observation coordinates
+        obs_coord = coordinates.SkyCoord(longitude, latitude, frame='gcrs', unit=units.deg)
+        # Read list
+        extinct_summ = dataPaths.extinction.get_file_path('extinction_curves.txt')
+        extinct_files = table.Table.read(extinct_summ, comment='#', format='ascii')
+        # Coords
+        ext_coord = coordinates.SkyCoord(extinct_files['Lon'], extinct_files['Lat'], frame='gcrs',
+                                        unit=units.deg)
+        # Match
+        idx, d2d, _ = coordinates.match_coordinates_sky(obs_coord, ext_coord, nthneighbor=1)
+        if d2d < toler:
+            extinct_file = extinct_files[int(idx)]['File']
+            msgs.info(f"Using {extinct_file} for extinction corrections.")
+        else:
+            # Crash with a helpful error message
+            msgs.warn(f"No observatory extinction file was found within {toler}{msgs.newline()}"
+                      f"of observation at lon = {longitude:.1f} lat = {latitude:.1f}  You may{msgs.newline()}"
+                      f"select an included extinction file (e.g., KPNO) for use by{msgs.newline()}"
+                      f"adding the following to the Sensitivity Input File{msgs.newline()}"
+                      "(for pypeit_sensfunc):")
+            msgs.pypeitpar(['sensfunc', 'UVIS', 'extinct_file = kpnoextinct.dat'])
+            msgs.warn("or the following to the Flux File (for pypeit_flux_calib):")
+            msgs.pypeitpar(['fluxcalib', 'extinct_file = kpnoextinct.dat'])
+            msgs.error(f"See instructions at{msgs.newline()}"
+                       f"https://pypeit.readthedocs.io/en/latest/fluxing.html#extinction-correction{msgs.newline()}"
+                       f"for using extinction files and how to install a user-supplied{msgs.newline()}"
+                       "file, if desired.")
+
+    # User-Supplied Extinction File
+    else:
+        extinct_file = extinctfilepar
+
+    # Read
+    extinct = table.Table.read(dataPaths.extinction.get_file_path(extinct_file),
+                               comment='#', format='ascii', names=('iwave', 'mag_ext'))
+    wave = table.Column(np.array(extinct['iwave']) * units.AA, name='wave')
+    extinct.add_column(wave)
+    # Return
+    return extinct[['wave', 'mag_ext']]
+
 
 
