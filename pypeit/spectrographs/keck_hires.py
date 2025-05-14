@@ -114,11 +114,11 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
         par['calibrations']['slitedges']['max_nudge'] = 0.
         par['calibrations']['slitedges']['overlap'] = True
         par['calibrations']['slitedges']['dlength_range'] = 0.25
+        par['calibrations']['slitedges']['mask_off_detector'] = True
 
         par['calibrations']['slitedges']['add_missed_orders'] = True
         par['calibrations']['slitedges']['order_width_poly'] = 2
         par['calibrations']['slitedges']['order_gap_poly'] = 3
-        par['calibrations']['slitedges']['order_outlier'] = 10.
 
         # These are the defaults
         par['calibrations']['tilts']['tracethresh'] = 15
@@ -262,7 +262,6 @@ class KECKHIRESSpectrograph(spectrograph.Spectrograph):
             object: Metadata value read from the header(s).
         """
         if meta_key == 'binning':
-            # TODO JFH Is this correct or should it be flipped?
             binspatial, binspec = parse.parse_binning(headarr[0]['BINNING'])
             binning = parse.binning2string(binspec, binspatial)
             return binning

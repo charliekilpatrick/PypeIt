@@ -681,34 +681,6 @@ class KeckDEIMOSSpectrograph(spectrograph.Spectrograph):
         msgs.warn('Cannot determine if frames are of type {0}.'.format(ftype))
         return np.zeros(len(fitstbl), dtype=bool)
 
-    # TODO: We should aim to get rid of this... I'm not sure it's ever used...
-    def idname(self, ftype):
-        """
-        Return the ``idname`` for the selected frame type for this
-        instrument.
-
-        Args:
-            ftype (:obj:`str`):
-                Frame type, which should be one of the keys in
-                :class:`~pypeit.core.framematch.FrameTypeBitMask`.
-
-        Returns:
-            :obj:`str`: The value of ``idname`` that should be available in
-            the :class:`~pypeit.metadata.PypeItMetaData` instance that
-            identifies frames of this type.
-        """
-        # TODO: Fill in the rest of these.
-        name = { 'arc': 'Line',
-                 'tilt': None,
-                 'bias': None,
-                 'dark': None,
-                 'pinhole': None,
-                 'pixelflat': 'IntFlat',
-                 'science': 'Object',
-                 'standard': None,
-                 'trace': 'IntFlat' }
-        return name[ftype]
-
     def get_rawimage(self, raw_file, det):
         """
         Read raw images and generate a few other bits and pieces
@@ -1964,19 +1936,22 @@ def load_wmko_std_spectrum(fits_file:str, outfile=None, pad = False, split=True)
     # Generate SpecObj
     if not split:
         sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
-                                    idl_spec['COUNTS'].data[0:npix], 
-                                    1./(idl_spec['COUNTS'].data[0:npix]),
-                                    DET='MSC03')
+                                            idl_spec['COUNTS'].data[0:npix],
+                                            1./(idl_spec['COUNTS'].data[0:npix]),
+                                            np.ones(idl_spec['COUNTS'].data[0:npix].size),
+                                            DET='MSC03')
     else:
         sobj1 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[0:npix],
-                                    idl_spec['COUNTS'].data[0:npix], 
-                                    1./(idl_spec['COUNTS'].data[0:npix]),
-                                    DET='DET03')
+                                            idl_spec['COUNTS'].data[0:npix],
+                                            1./(idl_spec['COUNTS'].data[0:npix]),
+                                            np.ones(idl_spec['COUNTS'].data[0:npix].size),
+                                            DET='DET03')
         
         sobj2 = specobj.SpecObj.from_arrays('MultiSlit', idl_vac.value[npix:],
-                                    idl_spec['COUNTS'].data[npix:], 
-                                    1./(idl_spec['COUNTS'].data[npix:]), 
-                                    DET='DET07')
+                                            idl_spec['COUNTS'].data[npix:],
+                                            1./(idl_spec['COUNTS'].data[npix:]),
+                                            np.ones(idl_spec['COUNTS'].data[npix:].size),
+                                            DET='DET07')
 
     # SpecObjs
     sobjs = specobjs.SpecObjs()
