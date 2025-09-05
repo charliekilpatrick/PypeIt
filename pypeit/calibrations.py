@@ -104,7 +104,7 @@ class Calibrations:
         frame (:obj:`int`):
             The index of a raw file in :attr:`fitstbl` used to set the
             calibration group.
-        calib_ID (:obj:`int`):
+        calib_ID (:obj:`str`):
             The calibration group associated with :attr:`frame`.
         msarc (:class:`~pypeit.images.buildimage.ArcImage`):
             Arc calibration frame
@@ -276,8 +276,8 @@ class Calibrations:
             The calibration identifier
         setup : :obj:`str`
             The setup/configuration identifier
-        calib_id : :obj:`list`
-            The calibration groups
+        calib_id : :obj:`str`
+            The calibration group
         detname : :obj:`str`
             The detector/mosaic identifier
         """

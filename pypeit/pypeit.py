@@ -289,6 +289,7 @@ class PypeIt:
         self.tstart = time.perf_counter()
 
         # Frame indices
+        #embed(header='292 of pypeit.py')
         frame_indx = np.arange(len(self.fitstbl))
         for calib_ID in self.fitstbl.calib_groups:
             # Find all the frames in this calibration group
@@ -306,7 +307,7 @@ class PypeIt:
             for self.det in detectors:
                 msgs.info(f'Working on detector {self.det}')
 
-                self.caliBrate = self.calib_one(grp_frames, self.det)
+                self.caliBrate = self.calib_one(grp_frames, self.det, calib_ID)
                 if not self.caliBrate.success:
                     msgs.warn(f'Calibrations for detector {self.det} were unsuccessful!  The step '
                               f'that failed was {self.caliBrate.failed_step}.  Continuing to next '
@@ -693,7 +694,7 @@ class PypeIt:
                                                    self.spectrograph.get_det_name(det))
         return objtype_out, calib_key, obstime, basename, binning
 
-    def calib_one(self, frames, det, stop_at_step:str=None):
+    def calib_one(self, frames, det, calib_ID, stop_at_step:str=None):
         """
         Run Calibration for a single exposure/detector pair
 
@@ -703,6 +704,8 @@ class PypeIt:
                 Only used to idetify the setup and calibration group
             det (:obj:`int`):
                 Detector number (1-indexed)
+            calib_ID (:obj:`str`):
+                Calibration group ID
             stop_at_step (:obj:`str`, optional):
                 Run only up to this calibration step.
                 
@@ -728,6 +731,7 @@ class PypeIt:
             
         # These need to be separate to accomodate COADD2D
         caliBrate.set_config(frames[0], det, self.par['calibrations'])
+        caliBrate.calib_ID = calib_ID  # JXP - YES, THIS NEEDS TO BE HERE
 
         # Run
         caliBrate.run_the_steps(stop_at_step=stop_at_step)
